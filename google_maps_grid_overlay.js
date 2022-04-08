@@ -41,6 +41,8 @@ function initMap() {
     bounds_;
     image_;
     div_;
+    gridDragListener_;
+    gridReleaseListener_;
     constructor(bounds, image) {
       super();
       // Initialize all properties.
@@ -51,6 +53,26 @@ function initMap() {
       // method so we'll leave it null for now.
       this.div_ = null;
     }
+    
+    divDrag(event) {
+      var x = event.pageX;
+      var y = event.pageY;
+      var topRight = map.getProjection().fromLatLngToPoint(map.getBounds().getNorthEast());
+      var bottomLeft = map.getProjection().fromLatLngToPoint(map.getBounds().getSouthWest());
+      var scale = Math.pow(2, map.getZoom());
+      var worldPoint = new google.maps.Point(x / scale + bottomLeft.x, y / scale + y);
+      // console.log(worldPoint.x + " / " + worldPoint.y);
+    }
+    
+    divRelease(event) {
+    	map.setOptions({draggable: true})
+      google.maps.event.removeListener(this.gridDragListener_);
+      google.maps.event.removeListener(this.gridReleaseListener_);
+      console.log(map.getBounds().getCenter().lng() + " / " + map.getBounds().getCenter().lat());
+      console.log(map.getCenter().lat() + " / " + map.getCenter().lng());
+      console.log("ditch!");
+    }
+    
     /**
      * onAdd is called when the map's panes are ready and the overlay has been
      * added to the map.
@@ -65,19 +87,17 @@ function initMap() {
       this.div_.addEventListener("contextmenu", event => {
       	this.setMap(null);
       });
-      
-      function divDrag(event) {
-        console.log("dong!");
-      }
+     
       
       this.div_.addEventListener("mousedown", event => {
-      	console.log("ding!");
-        this.div_.addEventListener("mousemove", divDrag);
-      });
-      
-      this.div_.addEventListener("mouseup", event => {
-      	this.div_.removeEventListener("mousemove", divDrag);
-      	console.log("ditch!");
+      	if (!event.shiftKey)
+        {
+          console.log("ding!");
+          map.setOptions({draggable: false})
+          this.gridDragListener_ = map.addListener("mousemove", this.divDrag);
+          this.gridReleaseListener_ = map.addListener("mouseup", this.divRelease);
+          console.log(map.getCenter().lat() + " / " + map.getCenter().lng());
+        }
       });
 
       // Create the img element and attach it to the div.
@@ -151,11 +171,7 @@ function initMap() {
   
   google.maps.event.addDomListener( document.getElementById("map"), "click", function(event) {
     // check modifiers
-    if ( event.shiftKey ) {
-        // do things for shift key down
-        alert("oooooh")
-    }
-    else if ( event.ctrlKey ) {
+    if ( event.ctrlKey ) {
         // add new for ctrl key down
         console.log("we here...")
         bounds = new google.maps.LatLngBounds(
