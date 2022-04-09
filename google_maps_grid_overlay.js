@@ -10,7 +10,8 @@ function initMap() {
 	const initLat = 47.618744
   const initLng = -122.320060
   const yDist = 0.0020;
-  var gridCounter = 1
+  var grids = [];
+  var activeGrid = null;
   const initCenter = new google.maps.LatLng((initLat + (yDist / 2)).toFixed(6), (initLng + (yDist / 2)).toFixed(6));
   
   const map = new google.maps.Map(document.getElementById("map"), {
@@ -33,33 +34,31 @@ function initMap() {
     );
   }
   
-  function pointToLatLng(x, y, widthPx, heightPx, bounds) {
+  function pointToLatLng(x, y, widthPx, heightPx) {
   	console.log("x: " + x);
     console.log("y: " + y);
     console.log("w: " + widthPx);
     console.log("h: " + heightPx);
-    var leftLat = map.getBounds().getNorthEast().lat();
-    var rightLat = map.getBounds().getSouthWest().lat();
-    var topLng = map.getBounds().getNorthEast().lng();
-    var bottomLng = map.getBounds().getSouthWest().lng();
+    var leftLng = map.getBounds().getNorthEast().lng();
+    var rightLng = map.getBounds().getSouthWest().lng();
+    var topLat = map.getBounds().getNorthEast().lat();
+    var bottomLat = map.getBounds().getSouthWest().lat();
     var relativeOffsetX = x / widthPx;
     var relativeOffsetY = y / heightPx;
-    console.log("relative offsets: (" + relativeOffsetX + ", " + relativeOffsetY + ")");
-    var lat = leftLat + (relativeOffsetX * (rightLat - leftLat));
-    var lng = bottomLng + (relativeOffsetY * (bottomLng - topLng));
-    console.log("latlng: (" + lat + ", " + lng + ")");
+    // console.log("relative offsets: (" + relativeOffsetX + ", " + relativeOffsetY + ")");
+    var lng = rightLng + (leftLng - rightLng) + (relativeOffsetX * (rightLng - leftLng));
+    var lat = bottomLat + (topLat - bottomLat) + (relativeOffsetY * (bottomLat - topLat));
+    // console.log("latlng: (" + lat + ", " + lng + ")");
     return new google.maps.LatLng(lat, lng);
   }
   
   setCorner(initLat, initLng);
 
-  // The custom GridOverlay object contains the grid image,
-  // the bounds of the image, and a reference to the map.
-  class GridOverlay extends google.maps.OverlayView {
+	class MoveableGrid {
   	self;
-    bounds_;
+		overlay_;
+  	bounds_;
     image_;
-    div_;
     gridDragListener_;
     gridReleaseListener_;
     preDragBounds_;
@@ -68,38 +67,106 @@ function initMap() {
     preDragMapHeightPx_;
     preDragMouseX_;
     preDragMouseY_;
+    id;
     
-    divDrag(event) {
-    	var point = overlay.getProjection().fromLatLngToDivPixel(event.latLng); 
-      var x = point.x;
-      var y = point.y;
-      var dragLatLng = pointToLatLng(x, y, self.preDragMapWidthPx_, self.preDragMapHeightPx_, self.preDragBounds_);
-      var latOffset = (dragLatLng.lat() - self.preDragLatLngClick_.lat());
-      var lngOffset = (dragLatLng.lat() - self.preDragLatLngClick_.lat());
-    }
-    
-    divRelease(event) {
-    	map.setOptions({draggable: true});
-      google.maps.event.removeListener(self.gridDragListener_);
-      google.maps.event.removeListener(self.gridReleaseListener_);
-      self.preDragBounds_ = null;
-      self.preDragMapWidthPx_ = null;
-      self.preDragMapWidthPx_ = null;
-      self.preDragMouseX_ = null;
-      self.preDragMouseY_ = null;
-      console.log("ditch!");
-    }
-    
-    constructor(bounds, image) {
-      super();
+  	constructor(bounds, image) {
       // Initialize all properties.
       this.bounds_ = bounds;
       this.image_ = image;
       // Define a property to hold the image's div. We'll
       // actually create this div upon receipt of the onAdd()
       // method so we'll leave it null for now.
+      this.gridDragListener_ = null;
+      this.gridReleaseListener_ = null;
+      this.preDragBounds_ = null;
+      this.preDragLatLngClick_ = null;
+      this.preDragMapWidthPx_ = null;
+      this.preDragMapHeightPx_ = null;
+      this.preDragMouseX_ = null;
+      this.preDragMouseY_ = null;
+      this.overlay_ = new GridOverlay(this);
+      this.overlay_.setMap(map);
+      this.self = this
+      this.id = grids.length;
+      grids.push(this);
+    }
+    
+    startDivMove(mouseX, mouseY, shiftKey) {
+      if (!shiftKey)
+      {
+        activeGrid.gridDragListener_ = map.addListener("mousemove", activeGrid.divDrag);
+        activeGrid.gridReleaseListener_ = map.addListener("mouseup", activeGrid.divRelease);
+        activeGrid.preDragBounds_ = map.getBounds();
+        activeGrid.preDragMapWidthPx_ = document.getElementById('map').offsetWidth;
+        activeGrid.preDragMapHeightPx_ = document.getElementById('map').offsetHeight;
+        activeGrid.preDragMouseX_ = mouseX;
+        activeGrid.preDragMouseY_ = mouseY;
+        activeGrid.preDragLatLngClick_ = pointToLatLng(activeGrid.preDragMouseX_, activeGrid.preDragMouseY_, activeGrid.preDragMapWidthPx_, activeGrid.preDragMapHeightPx_);
+      }
+    }
+      
+  	divDrag(event) {
+    	var scale = Math.pow(2, map.getZoom());
+      var nw = new google.maps.LatLng(
+        map.getBounds().getNorthEast().lat(),
+        map.getBounds().getSouthWest().lng()
+      );
+      var worldCoordinateNW = map.getProjection().fromLatLngToPoint(nw);
+      var worldCoordinate = map.getProjection().fromLatLngToPoint(event.latLng);
+      var pixelOffset = new google.maps.Point(
+        Math.floor((worldCoordinate.x - worldCoordinateNW.x) * scale),
+        Math.floor((worldCoordinate.y - worldCoordinateNW.y) * scale)
+        )
+      var x = pixelOffset.x;
+      var y = pixelOffset.y;
+      var dragLatLng = pointToLatLng(x, y, activeGrid.preDragMapWidthPx_, activeGrid.preDragMapHeightPx_);
+      var latOffset = (dragLatLng.lat() - activeGrid.preDragLatLngClick_.lat());
+      var lngOffset = (dragLatLng.lng() - activeGrid.preDragLatLngClick_.lng());
+      activeGrid.overlay_.setMap(null);
+      
+      var ne = activeGrid.bounds_.getNorthEast();
+      var sw = activeGrid.bounds_.getSouthWest();
+      
+      activeGrid.bounds_ = new google.maps.LatLngBounds(
+        new google.maps.LatLng(sw.lat() + latOffset, sw.lng() + lngOffset),
+        new google.maps.LatLng(ne.lat() + latOffset, ne.lng() + lngOffset)
+      );
+      
+      activeGrid.overlay_ = new GridOverlay(activeGrid);
+      activeGrid.overlay_.setMap(map);
+    }
+    
+    divRelease(event) {
+    	map.setOptions({draggable: true});
+      google.maps.event.removeListener(activeGrid.gridDragListener_);
+      google.maps.event.removeListener(activeGrid.gridReleaseListener_);
+      activeGrid.preDragBounds_ = null;
+      activeGrid.preDragMapWidthPx_ = null;
+      activeGrid.preDragMapWidthPx_ = null;
+      activeGrid.preDragMouseX_ = null;
+      activeGrid.preDragMouseY_ = null;
+      activeGrid = null;
+      console.log("ditch!");
+    }
+  }
+  // The custom GridOverlay object contains the grid image,
+  // the bounds of the image, and a reference to the map.
+  class GridOverlay extends google.maps.OverlayView {
+  	self;
+    div_;
+    overlayManager_;
+    
+    constructor(overlayManager) {
+      super();
+      // Initialize all properties.
+      this.overlayManager_ = overlayManager;
+      this.bounds_ = overlayManager.bounds_;
+      this.image_ = overlayManager.image_;
+      // Define a property to hold the image's div. We'll
+      // actually create this div upon receipt of the onAdd()
+      // method so we'll leave it null for now.
       this.div_ = null;
-      self = this;
+      this.self = this;
     }
     
     /**
@@ -112,26 +179,16 @@ function initMap() {
       this.div_.style.borderWidth = "0px";
       this.div_.style.position = "absolute";
       this.div_.style.zIndex = 128;
-      this.div_.id = "grid"+(gridCounter++);
+      this.div_.id = "grid" + this.overlayManager_.id;
       this.div_.addEventListener("contextmenu", event => {
       	this.setMap(null);
       });
      
       
       this.div_.addEventListener("mousedown", event => {
-      	if (!event.shiftKey)
-        {
-          console.log("ding!");
-          map.setOptions({draggable: false})
-          this.gridDragListener_ = map.addListener("mousemove", this.divDrag);
-          this.gridReleaseListener_ = map.addListener("mouseup", this.divRelease);
-          this.preDragBounds_ = map.getBounds();
-          this.preDragMapWidthPx_ = document.getElementById('map').offsetWidth;
-          this.preDragMapHeightPx_ = document.getElementById('map').offsetHeight;
-          this.preDragMouseX_ = event.pageX;
-          this.preDragMouseY_ = event.pageY;
-          this.preDragLatLngClick_ = pointToLatLng(this.preDragMouseX_, this.preDragMouseY_, this.preDragMapWidthPx_, this.preDragMapHeightPx_, this.bounds_);
-        }
+        activeGrid = grids[this.overlayManager_.id];
+      	map.setOptions({draggable: false})
+      	this.overlayManager_.startDivMove(event.pageX, event.pageY, event.shiftKey);
       });
 
       // Create the img element and attach it to the div.
@@ -160,10 +217,10 @@ function initMap() {
       // in LatLngs and convert them to pixel coordinates.
       // We'll use these coordinates to resize the div.
       const sw = overlayProjection.fromLatLngToDivPixel(
-        this.bounds_.getSouthWest()
+        this.overlayManager_.bounds_.getSouthWest()
       );
       const ne = overlayProjection.fromLatLngToDivPixel(
-        this.bounds_.getNorthEast()
+        this.overlayManager_.bounds_.getNorthEast()
       );
 
       // Resize the image's div to fit the indicated dimensions.
@@ -187,11 +244,8 @@ function initMap() {
   }
 
 	
-  overlay = new GridOverlay(bounds, srcImage);
-  
-  console.log(overlay);
-
-  overlay.setMap(map);
+  overlay = new MoveableGrid(bounds, srcImage);
+  console.log("we're back?")
   
   mapClickFired = false;
   
@@ -214,13 +268,8 @@ function initMap() {
           new google.maps.LatLng(clickLat, clickLng),
       		new google.maps.LatLng((clickLat + yDist).toFixed(6), (clickLng + yDist).toFixed(6))
         );
-        gridOverlay = new GridOverlay(bounds, srcImage);
-        gridOverlay.setMap(map);
-        gridOverlay.draw();
+        gridOverlay = new MoveableGrid(bounds, srcImage);
         
-        google.maps.event.addDomListener(document.getElementById(overlay.div_.id), "click", function(event) {
-          console.log("OOOOH BABY" + event.latLng);
-        });
         clickLat = null;
         clickLng = null;
     }
@@ -244,5 +293,3 @@ function initMap() {
     mapClickFired = false;
 	});
 }
-
-initMap();
