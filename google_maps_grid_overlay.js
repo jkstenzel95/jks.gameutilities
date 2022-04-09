@@ -35,21 +35,87 @@ function initMap() {
   }
   
   function pointToLatLng(x, y, widthPx, heightPx) {
-  	console.log("x: " + x);
+  	/*console.log("x: " + x);
     console.log("y: " + y);
     console.log("w: " + widthPx);
-    console.log("h: " + heightPx);
-    var leftLng = map.getBounds().getNorthEast().lng();
-    var rightLng = map.getBounds().getSouthWest().lng();
+    console.log("h: " + heightPx);*/
+    var leftLng = map.getBounds().getSouthWest().lng();
+    var rightLng = map.getBounds().getNorthEast().lng();
     var topLat = map.getBounds().getNorthEast().lat();
     var bottomLat = map.getBounds().getSouthWest().lat();
     var relativeOffsetX = x / widthPx;
     var relativeOffsetY = y / heightPx;
     // console.log("relative offsets: (" + relativeOffsetX + ", " + relativeOffsetY + ")");
-    var lng = rightLng + (leftLng - rightLng) + (relativeOffsetX * (rightLng - leftLng));
-    var lat = bottomLat + (topLat - bottomLat) + (relativeOffsetY * (bottomLat - topLat));
+    var lng = leftLng + (relativeOffsetX * (rightLng - leftLng));
+    var lat = topLat + (relativeOffsetY * (bottomLat - topLat));
+    // console.log("point latlng: (" + lat + ", " + lng + ")");
     // console.log("latlng: (" + lat + ", " + lng + ")");
     return new google.maps.LatLng(lat, lng);
+  }
+
+  function startDivMove(mouseX, mouseY, shiftKey) {
+    if (!shiftKey)
+    {
+      activeGrid.gridDragListener_ = map.addListener("mousemove", divDrag);
+      activeGrid.gridReleaseListener_ = map.addListener("mouseup", divRelease);
+      setDivMoveStartFields(mouseX, mouseY);
+    }
+  }
+  
+  function setDivMoveStartFields(mouseX, mouseY) {
+    var mapWidthPx = document.getElementById('map').offsetWidth;
+    var mapHeightPx = document.getElementById('map').offsetHeight;
+    activeGrid.preDragMouseX_ = mouseX;
+    activeGrid.preDragMouseY_ = mouseY;
+    activeGrid.preDragLatLngClick_ = pointToLatLng(activeGrid.preDragMouseX_, activeGrid.preDragMouseY_, mapWidthPx, mapHeightPx);
+  }
+  
+    
+  function divDrag(event) {
+    var scale = Math.pow(2, map.getZoom());
+    var nw = new google.maps.LatLng(
+      map.getBounds().getNorthEast().lat(),
+      map.getBounds().getSouthWest().lng()
+    );
+    var worldCoordinateNW = map.getProjection().fromLatLngToPoint(nw);
+    var worldCoordinate = map.getProjection().fromLatLngToPoint(event.latLng);
+    var pixelOffset = new google.maps.Point(
+      Math.floor((worldCoordinate.x - worldCoordinateNW.x) * scale),
+      Math.floor((worldCoordinate.y - worldCoordinateNW.y) * scale)
+      )
+    var x = pixelOffset.x;
+    var y = pixelOffset.y;
+    
+    var dragLatLng = event.latLng;
+    var latOffset = (dragLatLng.lat() - activeGrid.preDragLatLngClick_.lat());
+    var lngOffset = (dragLatLng.lng() - activeGrid.preDragLatLngClick_.lng());
+    activeGrid.overlay_.setMap(null);
+    
+    var ne = activeGrid.bounds_.getNorthEast();
+    var sw = activeGrid.bounds_.getSouthWest();
+    
+    activeGrid.bounds_ = new google.maps.LatLngBounds(
+      new google.maps.LatLng(sw.lat() + latOffset, ne.lng() + lngOffset),
+      new google.maps.LatLng(ne.lat() + latOffset, sw.lng() + lngOffset)
+    );    
+    
+    oldOverlay = activeGrid.overlay_
+    newOverlay = new GridOverlay(activeGrid);
+    oldOverlay.setMap(null);
+    newOverlay.setMap(map);
+    activeGrid.overlay_ = newOverlay;
+    
+    setDivMoveStartFields(x, y);
+  }
+  
+  function divRelease(event) {
+    map.setOptions({draggable: true});
+    google.maps.event.removeListener(activeGrid.gridDragListener_);
+    google.maps.event.removeListener(activeGrid.gridReleaseListener_);
+    activeGrid.preDragMouseX_ = null;
+    activeGrid.preDragMouseY_ = null;
+    activeGrid = null;
+    console.log("ditch!");
   }
   
   setCorner(initLat, initLng);
@@ -61,10 +127,7 @@ function initMap() {
     image_;
     gridDragListener_;
     gridReleaseListener_;
-    preDragBounds_;
     preDragLatLngClick_;
-    preDragMapWidthPx_;
-    preDragMapHeightPx_;
     preDragMouseX_;
     preDragMouseY_;
     id;
@@ -78,10 +141,7 @@ function initMap() {
       // method so we'll leave it null for now.
       this.gridDragListener_ = null;
       this.gridReleaseListener_ = null;
-      this.preDragBounds_ = null;
       this.preDragLatLngClick_ = null;
-      this.preDragMapWidthPx_ = null;
-      this.preDragMapHeightPx_ = null;
       this.preDragMouseX_ = null;
       this.preDragMouseY_ = null;
       this.overlay_ = new GridOverlay(this);
@@ -91,64 +151,9 @@ function initMap() {
       grids.push(this);
     }
     
-    startDivMove(mouseX, mouseY, shiftKey) {
-      if (!shiftKey)
-      {
-        activeGrid.gridDragListener_ = map.addListener("mousemove", activeGrid.divDrag);
-        activeGrid.gridReleaseListener_ = map.addListener("mouseup", activeGrid.divRelease);
-        activeGrid.preDragBounds_ = map.getBounds();
-        activeGrid.preDragMapWidthPx_ = document.getElementById('map').offsetWidth;
-        activeGrid.preDragMapHeightPx_ = document.getElementById('map').offsetHeight;
-        activeGrid.preDragMouseX_ = mouseX;
-        activeGrid.preDragMouseY_ = mouseY;
-        activeGrid.preDragLatLngClick_ = pointToLatLng(activeGrid.preDragMouseX_, activeGrid.preDragMouseY_, activeGrid.preDragMapWidthPx_, activeGrid.preDragMapHeightPx_);
-      }
-    }
-      
-  	divDrag(event) {
-    	var scale = Math.pow(2, map.getZoom());
-      var nw = new google.maps.LatLng(
-        map.getBounds().getNorthEast().lat(),
-        map.getBounds().getSouthWest().lng()
-      );
-      var worldCoordinateNW = map.getProjection().fromLatLngToPoint(nw);
-      var worldCoordinate = map.getProjection().fromLatLngToPoint(event.latLng);
-      var pixelOffset = new google.maps.Point(
-        Math.floor((worldCoordinate.x - worldCoordinateNW.x) * scale),
-        Math.floor((worldCoordinate.y - worldCoordinateNW.y) * scale)
-        )
-      var x = pixelOffset.x;
-      var y = pixelOffset.y;
-      var dragLatLng = pointToLatLng(x, y, activeGrid.preDragMapWidthPx_, activeGrid.preDragMapHeightPx_);
-      var latOffset = (dragLatLng.lat() - activeGrid.preDragLatLngClick_.lat());
-      var lngOffset = (dragLatLng.lng() - activeGrid.preDragLatLngClick_.lng());
-      activeGrid.overlay_.setMap(null);
-      
-      var ne = activeGrid.bounds_.getNorthEast();
-      var sw = activeGrid.bounds_.getSouthWest();
-      
-      activeGrid.bounds_ = new google.maps.LatLngBounds(
-        new google.maps.LatLng(sw.lat() + latOffset, sw.lng() + lngOffset),
-        new google.maps.LatLng(ne.lat() + latOffset, ne.lng() + lngOffset)
-      );
-      
-      activeGrid.overlay_ = new GridOverlay(activeGrid);
-      activeGrid.overlay_.setMap(map);
-    }
     
-    divRelease(event) {
-    	map.setOptions({draggable: true});
-      google.maps.event.removeListener(activeGrid.gridDragListener_);
-      google.maps.event.removeListener(activeGrid.gridReleaseListener_);
-      activeGrid.preDragBounds_ = null;
-      activeGrid.preDragMapWidthPx_ = null;
-      activeGrid.preDragMapWidthPx_ = null;
-      activeGrid.preDragMouseX_ = null;
-      activeGrid.preDragMouseY_ = null;
-      activeGrid = null;
-      console.log("ditch!");
-    }
   }
+
   // The custom GridOverlay object contains the grid image,
   // the bounds of the image, and a reference to the map.
   class GridOverlay extends google.maps.OverlayView {
@@ -188,7 +193,7 @@ function initMap() {
       this.div_.addEventListener("mousedown", event => {
         activeGrid = grids[this.overlayManager_.id];
       	map.setOptions({draggable: false})
-      	this.overlayManager_.startDivMove(event.pageX, event.pageY, event.shiftKey);
+      	startDivMove(event.pageX, event.pageY, event.shiftKey);
       });
 
       // Create the img element and attach it to the div.
@@ -245,7 +250,6 @@ function initMap() {
 
 	
   overlay = new MoveableGrid(bounds, srcImage);
-  console.log("we're back?")
   
   mapClickFired = false;
   
