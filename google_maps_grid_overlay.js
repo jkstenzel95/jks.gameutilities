@@ -9,7 +9,7 @@
 function initMap() {
 	const initLat = 47.618744
   const initLng = -122.320060
-  const yDist = 0.0020;
+  const yDist = 0.001845;
   var grids = [];
   var activeGrid = null;
   const initCenter = new google.maps.LatLng((initLat + (yDist / 2)).toFixed(6), (initLng + (yDist / 2)).toFixed(6));
