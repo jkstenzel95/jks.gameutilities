@@ -10,12 +10,19 @@ function initMap() {
 	const initLat = 47.618744
   const initLng = -122.320060
   const yDist = 0.001845;
+  
+  const NW = 0;
+  const NE = 1;
+  const SW = 2;
+  const SE = 3;
+  
   var grids = [];
   var activeGrid = null;
+  var placementCorner = NW;
   const initCenter = new google.maps.LatLng((initLat + (yDist / 2)).toFixed(6), (initLng + (yDist / 2)).toFixed(6));
   
   const map = new google.maps.Map(document.getElementById("map"), {
-    zoom: 19,
+    zoom: 18,
     center: { lat: initCenter.lat(), lng: initCenter.lng() },
     mapTypeId: "roadmap",
   });
@@ -108,6 +115,8 @@ function initMap() {
   }
   
   setCorner(initLat, initLng);
+  
+  class gridImage {}
 
 	class MoveableGrid {
   	self;
@@ -244,6 +253,7 @@ function initMap() {
   }
  
   mapClickFired = false;
+  document.getElementById("img-preview").src = srcImage;
   
   map.addListener( "click", function(e) {
     mapClickFired = true; // acted on in DOM listener below
@@ -255,14 +265,71 @@ function initMap() {
       mapRightClickFired = true; // acted on in DOM listener below
   });
   
+  window.addEventListener( "keypress", function(e) {
+    if (e.key == "w")
+    {
+      console.log("next opt");
+    }
+    else if (e.key == "s")
+    {
+      console.log("last opt");
+    }
+    else if (e.key == "q")
+    {
+    	document.getElementById("corner-text").innerHTML = "NW";
+      placementCorner = NW;
+      console.log("TOP-LEFT");
+    }
+    else if (e.key == "e")
+    {
+    	document.getElementById("corner-text").innerHTML = "NE";
+      placementCorner = NE;
+      console.log("TOP-RIGHT");
+    }
+    else if (e.key == "a")
+    {
+    	document.getElementById("corner-text").innerHTML = "SW";
+      placementCorner = SW;
+      console.log("BOTTOM-LEFT");
+    }
+    else if (e.key == "d")
+    {
+    	document.getElementById("corner-text").innerHTML = "SE";
+      placementCorner = SE;
+      console.log("BOTTOM-RIGHT");
+    }
+  });
+  
+  function getPlacementBounds(clickLat, clickLng) {
+  	var northeast;
+    var southwest;
+  	switch (placementCorner) {
+    	case NW:
+      	northeast = new google.maps.LatLng(clickLat, clickLng);
+        southwest = new google.maps.LatLng(clickLat + yDist, clickLng + yDist);
+        break;
+      case NE:
+      	northeast = new google.maps.LatLng(clickLat, clickLng - yDist);
+        southwest = new google.maps.LatLng(clickLat + yDist, clickLng);
+        break;
+      case SW:
+      	northeast = new google.maps.LatLng(clickLat + yDist, clickLng - yDist);
+        southwest = new google.maps.LatLng(clickLat, clickLng);
+        break;
+      case SE:
+      	northeast = new google.maps.LatLng(clickLat + yDist, clickLng);
+        southwest = new google.maps.LatLng(clickLat, clickLng + yDist);
+        break;
+    }
+    
+    return new google.maps.LatLngBounds(northeast, southwest);
+  }
+  
   google.maps.event.addDomListener( document.getElementById("map"), "click", function(event) {
     // check modifiers
     if ( event.ctrlKey ) {
         // add new for ctrl key down
-        bounds = new google.maps.LatLngBounds(
-          new google.maps.LatLng(clickLat, clickLng),
-      		new google.maps.LatLng((clickLat + yDist).toFixed(6), (clickLng + yDist).toFixed(6))
-        );
+        bounds = getPlacementBounds(clickLat, clickLng);
         gridOverlay = new MoveableGrid(bounds, srcImage);
         
         clickLat = null;
