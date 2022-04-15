@@ -45,11 +45,8 @@ function initMap() {
     var bottomLat = map.getBounds().getSouthWest().lat();
     var relativeOffsetX = x / widthPx;
     var relativeOffsetY = y / heightPx;
-    // console.log("relative offsets: (" + relativeOffsetX + ", " + relativeOffsetY + ")");
     var lng = leftLng + (relativeOffsetX * (rightLng - leftLng));
     var lat = topLat + (relativeOffsetY * (bottomLat - topLat));
-    // console.log("point latlng: (" + lat + ", " + lng + ")");
-    // console.log("latlng: (" + lat + ", " + lng + ")");
     return new google.maps.LatLng(lat, lng);
   }
 
@@ -94,10 +91,17 @@ function initMap() {
     var ne = activeGrid.bounds_.getNorthEast();
     var sw = activeGrid.bounds_.getSouthWest();
     
+    //console.log("offset: " + ne.lat() + " " + ne.lng());
+    
     activeGrid.bounds_ = new google.maps.LatLngBounds(
-      new google.maps.LatLng(sw.lat() + latOffset, ne.lng() + lngOffset),
-      new google.maps.LatLng(ne.lat() + latOffset, sw.lng() + lngOffset)
-    );    
+    	new google.maps.LatLng(sw.lat() + latOffset, sw.lng() + lngOffset),
+      new google.maps.LatLng(ne.lat() + latOffset, ne.lng() + lngOffset)
+    );
+    
+    //console.log("bound lat: " + ne.lat() + " -> "+ (activeGrid.bounds_.getSouthWest().lat()));
+    //console.log("... and bound lng: " + ne.lng() + " -> "+ (activeGrid.bounds_.getSouthWest().lng()));
+    console.log("ne to sw latlng diff: " + (ne.lat() - sw.lat()) + " " + (ne.lng() - sw.lng()));
+    //console.log("ne ll: " + activeGrid.bounds_.getNorthEast().lat() + " " + activeGrid.bounds_.getNorthEast().lng());
     
     oldOverlay = activeGrid.overlay_
     newOverlay = new GridOverlay(activeGrid);
@@ -224,6 +228,11 @@ function initMap() {
       const sw = overlayProjection.fromLatLngToDivPixel(
         this.overlayManager_.bounds_.getSouthWest()
       );
+      
+      var swll = this.overlayManager_.bounds_.getSouthWest();
+      //console.log(this.overlayManager_.bounds_);
+      //console.log("SWll: " + swll.lat() + " , " + swll.lng());
+      //console.log("SW: " + sw.x + " , " + sw.y);
       const ne = overlayProjection.fromLatLngToDivPixel(
         this.overlayManager_.bounds_.getNorthEast()
       );
@@ -247,10 +256,7 @@ function initMap() {
       }
     }
   }
-
-	
-  overlay = new MoveableGrid(bounds, srcImage);
-  
+ 
   mapClickFired = false;
   
   map.addListener( "click", function(e) {
