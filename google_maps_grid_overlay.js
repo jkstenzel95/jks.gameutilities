@@ -35,10 +35,6 @@ function initMap() {
   }
   
   function pointToLatLng(x, y, widthPx, heightPx) {
-  	/*console.log("x: " + x);
-    console.log("y: " + y);
-    console.log("w: " + widthPx);
-    console.log("h: " + heightPx);*/
     var leftLng = map.getBounds().getSouthWest().lng();
     var rightLng = map.getBounds().getNorthEast().lng();
     var topLat = map.getBounds().getNorthEast().lat();
@@ -51,12 +47,10 @@ function initMap() {
   }
 
   function startDivMove(mouseX, mouseY, shiftKey) {
-    if (!shiftKey)
-    {
-      activeGrid.gridDragListener_ = map.addListener("mousemove", divDrag);
-      activeGrid.gridReleaseListener_ = map.addListener("mouseup", divRelease);
-      setDivMoveStartFields(mouseX, mouseY);
-    }
+    console.log("SHIFT KEY " + shiftKey);
+    activeGrid.gridDragListener_ = map.addListener("mousemove", divDrag);
+    activeGrid.gridReleaseListener_ = map.addListener("mouseup", divRelease);
+    setDivMoveStartFields(mouseX, mouseY);
   }
   
   function setDivMoveStartFields(mouseX, mouseY) {
@@ -64,6 +58,7 @@ function initMap() {
     var mapHeightPx = document.getElementById('map').offsetHeight;
     activeGrid.preDragMouseX_ = mouseX;
     activeGrid.preDragMouseY_ = mouseY;
+    activeGrid.preDragBounds_ = activeGrid.bounds_;
     activeGrid.preDragLatLngClick_ = pointToLatLng(activeGrid.preDragMouseX_, activeGrid.preDragMouseY_, mapWidthPx, mapHeightPx);
   }
   
@@ -80,46 +75,36 @@ function initMap() {
       Math.floor((worldCoordinate.x - worldCoordinateNW.x) * scale),
       Math.floor((worldCoordinate.y - worldCoordinateNW.y) * scale)
       )
-    var x = pixelOffset.x;
-    var y = pixelOffset.y;
     
     var dragLatLng = event.latLng;
     var latOffset = (dragLatLng.lat() - activeGrid.preDragLatLngClick_.lat());
     var lngOffset = (dragLatLng.lng() - activeGrid.preDragLatLngClick_.lng());
     activeGrid.overlay_.setMap(null);
     
-    var ne = activeGrid.bounds_.getNorthEast();
-    var sw = activeGrid.bounds_.getSouthWest();
-    
-    //console.log("offset: " + ne.lat() + " " + ne.lng());
+    var ne = activeGrid.preDragBounds_.getNorthEast();
+    var sw = activeGrid.preDragBounds_.getSouthWest();
     
     activeGrid.bounds_ = new google.maps.LatLngBounds(
     	new google.maps.LatLng(sw.lat() + latOffset, sw.lng() + lngOffset),
       new google.maps.LatLng(ne.lat() + latOffset, ne.lng() + lngOffset)
     );
     
-    //console.log("bound lat: " + ne.lat() + " -> "+ (activeGrid.bounds_.getSouthWest().lat()));
-    //console.log("... and bound lng: " + ne.lng() + " -> "+ (activeGrid.bounds_.getSouthWest().lng()));
-    console.log("ne to sw latlng diff: " + (ne.lat() - sw.lat()) + " " + (ne.lng() - sw.lng()));
-    //console.log("ne ll: " + activeGrid.bounds_.getNorthEast().lat() + " " + activeGrid.bounds_.getNorthEast().lng());
-    
     oldOverlay = activeGrid.overlay_
     newOverlay = new GridOverlay(activeGrid);
     oldOverlay.setMap(null);
     newOverlay.setMap(map);
     activeGrid.overlay_ = newOverlay;
-    
-    setDivMoveStartFields(x, y);
   }
   
   function divRelease(event) {
     map.setOptions({draggable: true});
     google.maps.event.removeListener(activeGrid.gridDragListener_);
     google.maps.event.removeListener(activeGrid.gridReleaseListener_);
+    activeGrid.preDragLatLngClick_ = null;
     activeGrid.preDragMouseX_ = null;
     activeGrid.preDragMouseY_ = null;
+    activeGrid.preDragBounds_ = null;
     activeGrid = null;
-    console.log("ditch!");
   }
   
   setCorner(initLat, initLng);
@@ -134,6 +119,7 @@ function initMap() {
     preDragLatLngClick_;
     preDragMouseX_;
     preDragMouseY_;
+    preDragBounds_;
     id;
     
   	constructor(bounds, image) {
@@ -148,6 +134,7 @@ function initMap() {
       this.preDragLatLngClick_ = null;
       this.preDragMouseX_ = null;
       this.preDragMouseY_ = null;
+      this.preDragBounds_ = null;
       this.overlay_ = new GridOverlay(this);
       this.overlay_.setMap(map);
       this.self = this
@@ -195,9 +182,12 @@ function initMap() {
      
       
       this.div_.addEventListener("mousedown", event => {
-        activeGrid = grids[this.overlayManager_.id];
-      	map.setOptions({draggable: false})
-      	startDivMove(event.pageX, event.pageY, event.shiftKey);
+      	if (!event.shiftKey)
+    		{
+          activeGrid = grids[this.overlayManager_.id];
+          map.setOptions({draggable: false})
+          startDivMove(event.pageX, event.pageY, event.shiftKey);
+        }
       });
 
       // Create the img element and attach it to the div.
@@ -230,9 +220,6 @@ function initMap() {
       );
       
       var swll = this.overlayManager_.bounds_.getSouthWest();
-      //console.log(this.overlayManager_.bounds_);
-      //console.log("SWll: " + swll.lat() + " , " + swll.lng());
-      //console.log("SW: " + sw.x + " , " + sw.y);
       const ne = overlayProjection.fromLatLngToDivPixel(
         this.overlayManager_.bounds_.getNorthEast()
       );
@@ -273,7 +260,6 @@ function initMap() {
     // check modifiers
     if ( event.ctrlKey ) {
         // add new for ctrl key down
-        console.log("we here...")
         bounds = new google.maps.LatLngBounds(
           new google.maps.LatLng(clickLat, clickLng),
       		new google.maps.LatLng((clickLat + yDist).toFixed(6), (clickLng + yDist).toFixed(6))
