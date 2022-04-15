@@ -47,7 +47,7 @@ function initMap() {
   }
 
   function startDivMove(mouseX, mouseY, shiftKey) {
-    console.log("SHIFT KEY " + shiftKey);
+    map.setOptions({draggable: false, clickableIcons: false});
     activeGrid.gridDragListener_ = map.addListener("mousemove", divDrag);
     activeGrid.gridReleaseListener_ = map.addListener("mouseup", divRelease);
     setDivMoveStartFields(mouseX, mouseY);
@@ -74,9 +74,9 @@ function initMap() {
     var pixelOffset = new google.maps.Point(
       Math.floor((worldCoordinate.x - worldCoordinateNW.x) * scale),
       Math.floor((worldCoordinate.y - worldCoordinateNW.y) * scale)
-      )
-    
-    var dragLatLng = event.latLng;
+    );
+
+		var dragLatLng = event.latLng;
     var latOffset = (dragLatLng.lat() - activeGrid.preDragLatLngClick_.lat());
     var lngOffset = (dragLatLng.lng() - activeGrid.preDragLatLngClick_.lng());
     activeGrid.overlay_.setMap(null);
@@ -97,7 +97,6 @@ function initMap() {
   }
   
   function divRelease(event) {
-    map.setOptions({draggable: true});
     google.maps.event.removeListener(activeGrid.gridDragListener_);
     google.maps.event.removeListener(activeGrid.gridReleaseListener_);
     activeGrid.preDragLatLngClick_ = null;
@@ -105,6 +104,7 @@ function initMap() {
     activeGrid.preDragMouseY_ = null;
     activeGrid.preDragBounds_ = null;
     activeGrid = null;
+    map.setOptions({draggable: true, clickableIcons: true});
   }
   
   setCorner(initLat, initLng);
@@ -185,7 +185,6 @@ function initMap() {
       	if (!event.shiftKey)
     		{
           activeGrid = grids[this.overlayManager_.id];
-          map.setOptions({draggable: false})
           startDivMove(event.pageX, event.pageY, event.shiftKey);
         }
       });
