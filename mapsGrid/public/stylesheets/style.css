@@ -23,17 +23,36 @@ a {
 
 #grid-preview {
   position: absolute;
-  top: 60px;
-  left: 10px;
-  background: white;
+  bottom: 0;
+  left: 0;
+  background: papayawhip;
   height: 100px;
   width: 100px;
   z-index: 5;
 }
 
+#corner-text {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
 #img-preview {
-  height: 70%;
-  width: 70%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  opacity: 0.5;
+}
+
+#img-preview {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  opacity: 0.5;
 }
 
 /* Optional: Makes the sample page fill the window. */
@@ -46,4 +65,5 @@ body {
 
 .grid {
   filter: invert(100%);
+  opacity: 0.25;
 }

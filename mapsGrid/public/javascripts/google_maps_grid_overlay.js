@@ -9,37 +9,41 @@
 function initMap() {
 	const initLat = 47.618744
 	const initLng = -122.320060
-	const yDist = 0.001905;
 	
 	const NW = 0;
 	const NE = 1;
 	const SW = 2;
 	const SE = 3;
+
+	var grid_24x24_3p5 = {
+		prettyName: "24x24 @ 3.5",
+		HeightInLat: 0.001905,
+		srcImage: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRjXQ7D4nREGHyw-8nfqcxmaLqovUCxlyuJjL5QUVzqR-ZgBjNaA_ozGCxVSqiQLf-CS_A&usqp=CAU"
+	}
+
+	var grid_24x24_2 = {
+		prettyName: "24x24 @ 2",
+		HeightInLat: 0.001088571,
+		srcImage: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRjXQ7D4nREGHyw-8nfqcxmaLqovUCxlyuJjL5QUVzqR-ZgBjNaA_ozGCxVSqiQLf-CS_A&usqp=CAU"
+	}
+
+	var grid_24x24_1 = {
+		prettyName: "24x24 @ 1",
+		HeightInLat: 0.0005442857,
+		srcImage: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRjXQ7D4nREGHyw-8nfqcxmaLqovUCxlyuJjL5QUVzqR-ZgBjNaA_ozGCxVSqiQLf-CS_A&usqp=CAU"
+	}
 	
-	var grids = [];
+	var gridTypes = [ grid_24x24_3p5, grid_24x24_2, grid_24x24_1 ];
+	var activeGridTypeIndex = 0;
+	var createdGrids = [];
 	var activeGrid = null;
 	var placementCorner = NW;
-	const initCenter = new google.maps.LatLng((initLat + (yDist / 2)).toFixed(6), (initLng + (yDist / 2)).toFixed(6));
 	
 	const map = new google.maps.Map(document.getElementById("map"), {
 		zoom: 18,
-		center: { lat: initCenter.lat(), lng: initCenter.lng() },
+		center: { lat: initLat, lng: initLng },
 		mapTypeId: "roadmap",
 	});
-	
-	// The photograph is courtesy of the U.S. Geological Survey.
-	const srcImage =
-		"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRjXQ7D4nREGHyw-8nfqcxmaLqovUCxlyuJjL5QUVzqR-ZgBjNaA_ozGCxVSqiQLf-CS_A&usqp=CAU";
-	
-	var bounds;
-	
-	function setCorner(lat, lng) {
-		var yDist = 0.0025;
-		bounds = new google.maps.LatLngBounds(
-			new google.maps.LatLng(lat, lng),
-			new google.maps.LatLng((lat + yDist).toFixed(6), (lng + yDist).toFixed(6))
-		);
-	}
 	
 	function pointToLatLng(x, y, widthPx, heightPx) {
 		var leftLng = map.getBounds().getSouthWest().lng();
@@ -113,11 +117,27 @@ function initMap() {
 		activeGrid = null;
 		map.setOptions({draggable: true, clickableIcons: true});
 	}
-	
-	setCorner(initLat, initLng);
-	
-	class gridImage {}
 
+	function updateActiveGridText() {
+		var cornerName;
+		switch (placementCorner) {
+			case NW:
+				cornerName = "NW";
+				break;
+			case NE:
+				cornerName = "NE";
+				break;
+			case SE:
+				cornerName = "SE";
+				break;
+			case SW:
+				cornerName = "SW";
+				break;
+		}
+		
+		document.getElementById("corner-text").innerHTML = gridTypes[activeGridTypeIndex].prettyName + " (" + cornerName + ")";
+	}
+	
 	class MoveableGrid {
 		self;
 		overlay_;
@@ -129,15 +149,14 @@ function initMap() {
 		preDragMouseX_;
 		preDragMouseY_;
 		preDragBounds_;
+		gridType_;
 		id;
 		
-		constructor(bounds, image) {
+		constructor(bounds) {
 			// Initialize all properties.
+			this.gridType_ = gridTypes[activeGridTypeIndex];
 			this.bounds_ = bounds;
-			this.image_ = image;
-			// Define a property to hold the image's div. We'll
-			// actually create this div upon receipt of the onAdd()
-			// method so we'll leave it null for now.
+			this.image_ = this.gridType_.srcImage;
 			this.gridDragListener_ = null;
 			this.gridReleaseListener_ = null;
 			this.preDragLatLngClick_ = null;
@@ -146,9 +165,10 @@ function initMap() {
 			this.preDragBounds_ = null;
 			this.overlay_ = new GridOverlay(this);
 			this.overlay_.setMap(map);
+			
 			this.self = this
-			this.id = grids.length;
-			grids.push(this);
+			this.id = createdGrids.length;
+			createdGrids.push(this);
 		}
 		
 		
@@ -193,7 +213,7 @@ function initMap() {
 			this.div_.addEventListener("mousedown", event => {
 				if (!event.shiftKey)
 				{
-					activeGrid = grids[this.overlayManager_.id];
+					activeGrid = createdGrids[this.overlayManager_.id];
 					startDivMove(event.pageX, event.pageY, event.shiftKey);
 				}
 			});
@@ -205,7 +225,6 @@ function initMap() {
 			img.style.width = "100%";
 			img.style.height = "100%";
 			img.style.position = "absolute";
-			img.style.opacity = 0.25;
 			img.classList.add("grid");
 			this.div_.appendChild(img);
 
@@ -253,7 +272,8 @@ function initMap() {
 	}
  
 	mapClickFired = false;
-	document.getElementById("img-preview").src = srcImage;
+	document.getElementById("img-preview").src = gridTypes[activeGridTypeIndex].srcImage;
+	updateActiveGridText();
 	
 	map.addListener( "click", function(e) {
 		mapClickFired = true; // acted on in DOM listener below
@@ -269,10 +289,12 @@ function initMap() {
 		if (e.key == "w")
 		{
 			console.log("next opt");
+			activeGridTypeIndex = (activeGridTypeIndex + 1) % gridTypes.length;
 		}
 		else if (e.key == "s")
 		{
 			console.log("last opt");
+			activeGridTypeIndex = (activeGridTypeIndex - 1 + gridTypes.length) % gridTypes.length;
 		}
 		else if (e.key == "q")
 		{
@@ -298,27 +320,31 @@ function initMap() {
 			placementCorner = SE;
 			console.log("BOTTOM-RIGHT");
 		}
+
+		updateActiveGridText();
 	});
 	
 	function getPlacementBounds(clickLat, clickLng) {
 		var northeast;
 		var southwest;
+		var activeGridType = gridTypes[activeGridTypeIndex];
 		switch (placementCorner) {
 			case NW:
 				northeast = new google.maps.LatLng(clickLat, clickLng);
-				southwest = new google.maps.LatLng(clickLat + yDist, clickLng + yDist);
+		var activeGridType = gridTypes[activeGridTypeIndex];
+		southwest = new google.maps.LatLng(clickLat + activeGridType.HeightInLat, clickLng + activeGridType.HeightInLat);
 				break;
 			case NE:
-				northeast = new google.maps.LatLng(clickLat, clickLng - yDist);
-				southwest = new google.maps.LatLng(clickLat + yDist, clickLng);
+				northeast = new google.maps.LatLng(clickLat, clickLng - activeGridType.HeightInLat);
+				southwest = new google.maps.LatLng(clickLat + activeGridType.HeightInLat, clickLng);
 				break;
 			case SW:
-				northeast = new google.maps.LatLng(clickLat + yDist, clickLng - yDist);
+				northeast = new google.maps.LatLng(clickLat + activeGridType.HeightInLat, clickLng - activeGridType.HeightInLat);
 				southwest = new google.maps.LatLng(clickLat, clickLng);
 				break;
 			case SE:
-				northeast = new google.maps.LatLng(clickLat + yDist, clickLng);
-				southwest = new google.maps.LatLng(clickLat, clickLng + yDist);
+				northeast = new google.maps.LatLng(clickLat + activeGridType.HeightInLat, clickLng);
+				southwest = new google.maps.LatLng(clickLat, clickLng + activeGridType.HeightInLat);
 				break;
 		}
 		
@@ -330,7 +356,7 @@ function initMap() {
 		if ( event.ctrlKey ) {
 				// add new for ctrl key down
 				bounds = getPlacementBounds(clickLat, clickLng);
-				gridOverlay = new MoveableGrid(bounds, srcImage);
+				gridOverlay = new MoveableGrid(bounds);
 				
 				clickLat = null;
 				clickLng = null;
