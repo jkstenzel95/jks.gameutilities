@@ -1,0 +1,49 @@
+body {
+  padding: 50px;
+  font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+}
+
+a {
+  color: #00B7FF;
+}
+
+/* Always set the map height explicitly to define the size of the div
+  * element that contains the map. */
+#wrapper {
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
+#map {
+  height: 100%;
+  width: 100%;
+  z-index: 4;
+}
+
+#grid-preview {
+  position: absolute;
+  top: 60px;
+  left: 10px;
+  background: white;
+  height: 100px;
+  width: 100px;
+  z-index: 5;
+}
+
+#img-preview {
+  height: 70%;
+  width: 70%;
+}
+
+/* Optional: Makes the sample page fill the window. */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.grid {
+  filter: invert(100%);
+}

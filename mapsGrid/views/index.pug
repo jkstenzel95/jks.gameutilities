@@ -1,0 +1,14 @@
+doctype html
+html(lang='en')
+  head
+    title Maps Grid Overlay
+    link(rel='stylesheet', href='/stylesheets/style.css')
+    script(type="text/javascript", src="./javascripts/google_maps_grid_overlay.js")
+  body
+    div#wrapper
+      div#map
+      div#grid-preview
+        div#corner-text
+        img#img-preview
+    
+    script(src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg&callback=initMap&v=weekly&channel=2", defer)
