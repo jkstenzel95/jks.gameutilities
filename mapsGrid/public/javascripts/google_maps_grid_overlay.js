@@ -15,35 +15,31 @@ function initMap() {
 	const SW = 2;
 	const SE = 3;
 
-	var grid_24x24_3p5 = {
-		prettyName: "24x24 @ 3.5",
-		HeightInLat: 0.001905,
-		srcImage: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRjXQ7D4nREGHyw-8nfqcxmaLqovUCxlyuJjL5QUVzqR-ZgBjNaA_ozGCxVSqiQLf-CS_A&usqp=CAU"
-	}
-
-	var grid_24x24_2 = {
-		prettyName: "24x24 @ 2",
-		HeightInLat: 0.001088571,
-		srcImage: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRjXQ7D4nREGHyw-8nfqcxmaLqovUCxlyuJjL5QUVzqR-ZgBjNaA_ozGCxVSqiQLf-CS_A&usqp=CAU"
-	}
-
-	var grid_24x24_1 = {
-		prettyName: "24x24 @ 1",
-		HeightInLat: 0.0005442857,
+	var grid_24x24 = {
+		prettyName: "24x24",
+		metersPerBlock: 3.5,
+		heightInLat: 0.001905,
 		srcImage: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRjXQ7D4nREGHyw-8nfqcxmaLqovUCxlyuJjL5QUVzqR-ZgBjNaA_ozGCxVSqiQLf-CS_A&usqp=CAU"
 	}
 	
-	var gridTypes = [ grid_24x24_3p5, grid_24x24_2, grid_24x24_1 ];
+	var gridTypes = [ grid_24x24 ];
 	var activeGridTypeIndex = 0;
 	var createdGrids = [];
 	var activeGrid = null;
 	var placementCorner = NW;
+	var scaleOptions = [ 3.5, 4, 1, 2]
+	var activeScaleOptionIndex = 0;
 	
 	const map = new google.maps.Map(document.getElementById("map"), {
 		zoom: 18,
 		center: { lat: initLat, lng: initLng },
 		mapTypeId: "roadmap",
 	});
+
+	function getGridTypeAdjustedHeight() {
+		var activeGridType = gridTypes[activeGridTypeIndex];
+		return activeGridType.heightInLat * scaleOptions[activeScaleOptionIndex] /  activeGridType.metersPerBlock;
+	}
 	
 	function pointToLatLng(x, y, widthPx, heightPx) {
 		var leftLng = map.getBounds().getSouthWest().lng();
@@ -134,8 +130,8 @@ function initMap() {
 				cornerName = "SW";
 				break;
 		}
-		
-		document.getElementById("corner-text").innerHTML = gridTypes[activeGridTypeIndex].prettyName + " (" + cornerName + ")";
+
+		document.getElementById("corner-text").innerHTML = gridTypes[activeGridTypeIndex].prettyName + "@ " + scaleOptions[activeScaleOptionIndex] + " (" + cornerName + ")";
 	}
 	
 	class MoveableGrid {
@@ -288,13 +284,19 @@ function initMap() {
 	window.addEventListener( "keypress", function(e) {
 		if (e.key == "w")
 		{
-			console.log("next opt");
 			activeGridTypeIndex = (activeGridTypeIndex + 1) % gridTypes.length;
 		}
 		else if (e.key == "s")
 		{
-			console.log("last opt");
 			activeGridTypeIndex = (activeGridTypeIndex - 1 + gridTypes.length) % gridTypes.length;
+		}
+		else if (e.key == "z")
+		{
+			activeScaleOptionIndex = (activeScaleOptionIndex - 1 + scaleOptions.length) % scaleOptions.length;
+		}
+		else if (e.key == "c")
+		{
+			activeScaleOptionIndex = (activeScaleOptionIndex + 1) % scaleOptions.length;
 		}
 		else if (e.key == "q")
 		{
@@ -327,24 +329,22 @@ function initMap() {
 	function getPlacementBounds(clickLat, clickLng) {
 		var northeast;
 		var southwest;
-		var activeGridType = gridTypes[activeGridTypeIndex];
 		switch (placementCorner) {
 			case NW:
 				northeast = new google.maps.LatLng(clickLat, clickLng);
-		var activeGridType = gridTypes[activeGridTypeIndex];
-		southwest = new google.maps.LatLng(clickLat + activeGridType.HeightInLat, clickLng + activeGridType.HeightInLat);
+				southwest = new google.maps.LatLng(clickLat + getGridTypeAdjustedHeight(), clickLng + getGridTypeAdjustedHeight());
 				break;
 			case NE:
-				northeast = new google.maps.LatLng(clickLat, clickLng - activeGridType.HeightInLat);
-				southwest = new google.maps.LatLng(clickLat + activeGridType.HeightInLat, clickLng);
+				northeast = new google.maps.LatLng(clickLat, clickLng - getGridTypeAdjustedHeight());
+				southwest = new google.maps.LatLng(clickLat + getGridTypeAdjustedHeight(), clickLng);
 				break;
 			case SW:
-				northeast = new google.maps.LatLng(clickLat + activeGridType.HeightInLat, clickLng - activeGridType.HeightInLat);
+				northeast = new google.maps.LatLng(clickLat + getGridTypeAdjustedHeight(), clickLng - getGridTypeAdjustedHeight());
 				southwest = new google.maps.LatLng(clickLat, clickLng);
 				break;
 			case SE:
-				northeast = new google.maps.LatLng(clickLat + activeGridType.HeightInLat, clickLng);
-				southwest = new google.maps.LatLng(clickLat, clickLng + activeGridType.HeightInLat);
+				northeast = new google.maps.LatLng(clickLat + getGridTypeAdjustedHeight(), clickLng);
+				southwest = new google.maps.LatLng(clickLat, clickLng + getGridTypeAdjustedHeight());
 				break;
 		}
 		
